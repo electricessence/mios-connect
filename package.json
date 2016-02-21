@@ -4,11 +4,12 @@
   "description": "A TypeScript connector for communicating with a Vera gateway.",
   "main": "index.js",
   "dependencies": {
-    "http": "^0.0.0",
     "typescript-dotnet": "^2.5.19",
+    "web-request": "^1.0.1"
+  },
+  "devDependencies": {
     "typings": "^0.6.8"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

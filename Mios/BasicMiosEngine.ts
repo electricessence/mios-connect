@@ -23,14 +23,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-///<reference path="../typings/main/ambient/node/node.d.ts"/>
+///<reference path="../typings/main.d.ts"/>
+///<reference path="../node_modules/typescript-dotnet/source/System/Uri/IUri.d.ts"/>
+///<reference path="../node_modules/typescript-dotnet/source/System/Uri/IUriComponentFormattable.d.ts"/>
 
-import Type from '../node_modules/typescript-dotnet/source/System/Types'
-import Integer from '../node_modules/typescript-dotnet/source/System/Integer'
-import {format} from '../node_modules/typescript-dotnet/source/System/Text/Utility'
-import ArgumentNullException from '../node_modules/typescript-dotnet/source/System/Exceptions/ArgumentNullException'
+import Uri from '../node_modules/typescript-dotnet/source/System/Uri/Uri'
 import QueryBuilder from '../node_modules/typescript-dotnet/source/System/Uri/QueryBuilder'
-
+import * as WebRequest from 'web-request';
+import copy from '../node_modules/typescript-dotnet/source/System/Utility/shallowCopy'
+import ArgumentException from '../node_modules/typescript-dotnet/source/System/Exceptions/ArgumentException'
+import ArgumentNullException from '../node_modules/typescript-dotnet/source/System/Exceptions/ArgumentNullException'
+import Integer from '../node_modules/typescript-dotnet/source/System/Integer'
 
 // Http Luup Request methods
 // http://wiki.micasaverde.com/index.php/Luup_Requests
@@ -47,12 +50,13 @@ module Luup
 			export const ID:string = "id"; // String
 			export const NAME:string = "name"; // String
 			export const OUTPUT_FORMAT:string = "output_format"; // String
-			export const ROOM_ID:string = "room"; // Integer
+			export const ROOM:string = "room"; // Integer
 			export const SCENE_ID:string = "scene"; // Integer
 			export const SERVICE_ID:string = "serviceId"; // Integer
 			export const UDN:string = "UDN"; // String
 			export const VALUE:string = "Value"; // String
 			export const VARIABLE_NAME:string = "Variable"; // String
+			export const CODE:string = "Code"; // String
 
 			export const LOAD_TIME:string = "LoadTime";
 			export const DATA_VERSION:string = "DataVersion";
@@ -63,14 +67,66 @@ module Luup
 
 		Object.freeze(ParamNames);
 
+		export function translateParamName(from:string):string
+		{
+			var fromLC = from.toLowerCase();
+			for(var key of Object.keys(ParamNames))
+			{
+				if(key.toLowerCase()==fromLC) return key;
+			}
+
+			return from;
+		}
+
+		export function translateParamNames(from:IUriComponentMap):IUriComponentMap
+		{
+			var result:IUriComponentMap = {};
+
+			for(var key of Object.keys(from))
+			{
+				result[translateParamName(key)] = from[key];
+			}
+
+			return result;
+		}
+
+
 		export module IDs
 		{
 			export const USER_DATA:string = "user_data";
+			export const USER_DATA2:string = "user_data2";
+			export const STATUS:string = "status";
+			export const S_DATA:string = "sdata";
+			export const ACTIONS:string = "actions";
+			export const ACTION:string = "action";
+			export const DEVICE:string = "device";
+			export const SCENE:string = "scene";
+			export const ROOM:string = "room";
+			export const FILE:string = "file";
+
+		}
+
+		export module Actions
+		{
+			export const CREATE:string = "create";
+			export const RENAME:string = "rename";
+			export const DELETE:string = "delete";
+			export const LIST:string = "list";
+
+			export const RECORD:string = "record";
+			export const PAUSE:string = "pause";
+			export const STOP_RECORD:string = "stoprecord";
+			export const LIST_RECORD:string = "listrecord";
+			export const DELETE_RECORD:string = "deleterecord";
+			export const SAVE_RECORD:string = "saverecord";
+
+			export const RUN_LUA:string = "RunLua";
 		}
 
 		Object.freeze(IDs);
 
-		export module OutputFormats {
+		export module OutputFormats
+		{
 			export const XML:string = "xml";
 		}
 
@@ -82,316 +138,311 @@ module Luup
 
 }
 
-function queryFromTuples(...params:String[][]):QueryBuilder {
-	var query = new QueryBuilder({});
-	for(var t of params)
-		query.addByKeyValue(t[0],t[1]);
-	return query;
+//function queryFromTuples(params:[string,Primitive][]):QueryBuilder
+//{
+//	var query = new QueryBuilder({});
+//	for(var t of params)
+//	{
+//		query.addByKeyValue(t[0], t[1]);
+//	}
+//	return query;
+//}
+
+
+interface ILuupRequestBase extends IUriComponentMap
+{
+	outputFormat?:string
+}
+
+interface ILuupRequestParams extends ILuupRequestBase
+{
+	loadTime?:string,
+	dataVersion?:string,
+	timeout?:number,
+	minimumDelay?:number
+}
+
+interface ILuupRequestById extends IUriComponentMap
+{
+	id:string;
 }
 
 export default class BasicMiosEngine
 {
-	protected httpPrefix:string;
+	protected _baseUri:Uri;
+	protected _defaultParams:QueryBuilder;
 
-
-	userData(
-		outputFormat:string = Luup.Query.OutputFormats.XML,
-		loadTime?:string,
-		dataVersion?:string,
-		timeout?:string,
-		minimumDelay?:string):string
+	constructor(protected baseUri:string|IUri)
 	{
-		// http://ip_address:3480/data_request?id=user_data&output_format=xml
-
-		var query = queryFromTuples(
-			[Luup.Query.ParamNames.ID, Luup.Query.IDs.USER_DATA],
-			[Luup.Query.ParamNames.OUTPUT_FORMAT, outputFormat],
-			[Luup.Query.ParamNames.LOAD_TIME, loadTime],
-			[Luup.Query.ParamNames.DATA_VERSION, dataVersion],
-			[Luup.Query.ParamNames.TIMEOUT, timeout],
-			[Luup.Query.ParamNames.MINIMUM_DELAY, minimumDelay]
-		);
-
-		return '';
-		//HttpConnection.HttpGetString(HttpPrefix, Combine(
-		//	LuupId("user_data"),
-		//	LuupOutputFormat(outputFormat),
-		//	LuupParam("LoadTime", loadTime),
-		//	LuupParam("DataVersion", dataVersion),
-		//	LuupParam("timeout", timeout),
-		//	LuupParam("minimumdelay", minimumDelay)));
+		var _ = this;
+		_._baseUri = Uri.from(baseUri);
+		_._defaultParams
+			= QueryBuilder.init(Luup.Query.translateParamNames(_._baseUri.queryParams));
+		_._baseUri.query = '';
+		_._baseUri.queryParams = {};
 	}
 
+	request(params:ILuupRequestById):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=user_data2&output_format=xml
+		var _ = this;
+		var newUri = this._baseUri.toMap();
+		var defaultParams = QueryBuilder.init(_._defaultParams.toMap());
+		defaultParams.importMap(Luup.Query.translateParamNames(params));
+		newUri.query = defaultParams.toString();
+
+		return WebRequest.get(newUri.toString())
+			.then(response=>response.content);
+	}
+
+	requestById(id:string, params?:IUriComponentMap):Promise<string>
+	{
+		if(!id) throw new ArgumentNullException(Luup.Query.ParamNames.ID);
+
+		var p:ILuupRequestById = params ? copy(params) : {};
+		p.id = id;
+
+		return this.request(p);
+	}
+
+
+	userData(params?:ILuupRequestParams):Promise<string>
+	{
+		return this.requestById(Luup.Query.IDs.USER_DATA, params);
+	}
+
+	userData2(params?:ILuupRequestParams):Promise<string>
+	{
+		return this.requestById(Luup.Query.IDs.USER_DATA2, params);
+	}
+
+	status(params?:ILuupRequestParams):Promise<string>
+	{
+		return this.requestById(Luup.Query.IDs.STATUS, params);
+	}
+
+	sData(params?:ILuupRequestParams):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=sdata
+		// http://ip_address:3480/data_request?id=sdata&output_format=xml
+
+		return this.requestById(Luup.Query.IDs.S_DATA, params);
+	}
+
+	statusWithUdn(udn:string, params?:ILuupRequestBase):Promise<string>
+	{
+		params = params ? copy(params) : {};
+		params[Luup.Query.ParamNames.UDN] = udn;
+		return this.requestById(Luup.Query.IDs.STATUS, params);
+	}
+
+	deviceStatus(deviceNum:number, params?:ILuupRequestParams):Promise<string>
+	{
+
+		Integer.assert(deviceNum);
+		params = params ? copy(params) : {};
+		params[Luup.Query.ParamNames.DEVICE_NUM] = deviceNum;
+		return this.requestById(Luup.Query.IDs.STATUS, params);
+	}
+
+	deviceActions(deviceNum:number, params?:ILuupRequestBase):Promise<string>
+	{
+		Integer.assert(deviceNum);
+		params = params ? copy(params) : {};
+		params[Luup.Query.ParamNames.DEVICE_NUM] = deviceNum;
+		return this.requestById(Luup.Query.IDs.ACTIONS, params);
+	}
+
+	deviceAction(action:string, deviceNum:number, params?:IUriComponentMap):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=device&action=delete&device=5
+		Integer.assert(deviceNum);
+
+		var params:IUriComponentMap = params ? copy(params) : {};
+		params[Luup.Query.ParamNames.ACTION] = action;
+		params[Luup.Query.ParamNames.DEVICE] = deviceNum;
+
+		return this.requestById(Luup.Query.IDs.DEVICE, params);
+	}
+
+	deviceRename(
+		deviceNum:number,
+		newName:string,
+		newRoom?:string|number):Promise<string>
+	{
+		Integer.assert(deviceNum);
+		const NEW_NAME = 'newName';
+		if(!newName) throw new ArgumentException(NEW_NAME, 'cannot be null or empty');
+		if(/\s+/.test(newName)) throw new ArgumentException(NEW_NAME, 'cannot be pure whitespace');
+
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.NAME] = newName;
+		if(newRoom) params[Luup.Query.ParamNames.ROOM] = newRoom;
+
+		return this.deviceAction(Luup.Query.Actions.RENAME, deviceNum, params);
+	}
+
+	deviceDelete(deviceNum:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=device&action=delete&device=5
+		Integer.assert(deviceNum);
+
+		return this.deviceAction(Luup.Query.Actions.DELETE, deviceNum);
+	}
+
+
+	sceneAction(action:string, params?:IUriComponentMap):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=device&action=delete&device=5
+
+		var params:IUriComponentMap = params ? copy(params) : {};
+		params[Luup.Query.ParamNames.ACTION] = action;
+
+		return this.requestById(Luup.Query.IDs.SCENE, params);
+	}
+
+	sceneRecord():Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=record
+		return this.sceneAction(Luup.Query.Actions.RECORD);
+	}
+
+
+	scenePauseRecord(seconds:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=pause&seconds=y
+		return this.sceneAction(Luup.Query.Actions.PAUSE, {seconds: seconds});
+	}
+
+	sceneStopRecord():Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=stoprecord
+		return this.sceneAction(Luup.Query.Actions.STOP_RECORD);
+	}
+
+	sceneListRecord():Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=listrecord
+		return this.sceneAction(Luup.Query.Actions.LIST_RECORD);
+	}
+
+	sceneDeleteRecord(recording:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=deleterecord&number=x
+		Integer.assert(recording);
+
+		return this.sceneAction(Luup.Query.Actions.DELETE_RECORD, {number:recording});
+	}
+
+	sceneSaveRecord(name:string, room?:string|number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=deleterecord
+
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.NAME] = name;
+		if(room) params[Luup.Query.ParamNames.ROOM] = room;
+
+		return this.sceneAction(Luup.Query.Actions.SAVE_RECORD, params);
+	}
+
+	sceneRename(sceneId:number, name:string, room?:string|number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=rename&scene=5&name=Chandelier&room=Garage
+		Integer.assert(sceneId);
+
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.SCENE_ID] = sceneId;
+		params[Luup.Query.ParamNames.NAME] = name;
+		if(room) params[Luup.Query.ParamNames.ROOM] = room;
+
+		return this.sceneAction(Luup.Query.Actions.RENAME, params);
+	}
+
+	sceneDelete(sceneId:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=rename&scene=5&name=Chandelier&room=Garage
+		Integer.assert(sceneId);
+
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.SCENE_ID] = sceneId;
+
+		return this.sceneAction(Luup.Query.Actions.DELETE, params);
+	}
+
+	sceneCreate(json:string):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=create&json=
+
+		return this.sceneAction(Luup.Query.Actions.CREATE, {json:json});
+	}
+
+	sceneList(sceneId:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=scene&action=list&scene=5
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.SCENE_ID] = sceneId;
+
+		return this.sceneAction(Luup.Query.Actions.LIST, params);
+	}
+
+	roomAction(action:string, params?:IUriComponentMap):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=device&action=delete&device=5
+
+		var params:IUriComponentMap = params ? copy(params) : {};
+		params[Luup.Query.ParamNames.ACTION] = action;
+
+		return this.requestById(Luup.Query.IDs.ROOM, params);
+	}
+
+	roomCreate(name:string):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=room&action=create&name=Kitchen
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.NAME] = name;
+
+		return this.sceneAction(Luup.Query.Actions.CREATE, params);
+	}
+
+	roomRename(room:number,name:string):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=room&action=rename&room=5&name=Garage
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.ROOM] = room;
+		params[Luup.Query.ParamNames.NAME] = name;
+
+		return this.sceneAction(Luup.Query.Actions.RENAME, params);
+	}
+
+	roomDelete(room:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=room&action=delete&room=5
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.ROOM] = room;
+
+		return this.sceneAction(Luup.Query.Actions.DELETE, params);
+	}
+
+	file(filename:string):Promise<string> {
+		// http://ip_address:3480/data_request?id=file&parameters=D_BinaryLight1.xml
+
+		return this.requestById(Luup.Query.IDs.FILE, {parameters:filename});
+	}
+
+	runLua(code:string):Promise<string> {
+		// http://ip_address:3480/data_request?id=file&parameters=D_BinaryLight1.xml
+		var params:IUriComponentMap = {};
+		params[Luup.Query.ParamNames.SERVICE_ID] = "urn:micasaverde-com:serviceId:HomeAutomationGateway1";
+		params[Luup.Query.ParamNames.ACTION] = Luup.Query.Actions.RUN_LUA;
+		params[Luup.Query.ParamNames.CODE] = code;
+
+
+		return this.requestById(Luup.Query.IDs.ACTION, params);
+	}
+
+
 	/*
-	public string Luup_UserData2(string outputFormat = null, string loadTime = null, string dataVersion = null, string timeout = null, string minimumDelay = null)
-		{
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("user_data2"),
-				LuupOutputFormat(outputFormat),
-				LuupParam("LoadTime", loadTime),
-				LuupParam("DataVersion", dataVersion),
-				LuupParam("timeout", timeout),
-				LuupParam("minimumdelay", minimumDelay)));
-		}
 
-	public string Luup_Status(string outputFormat = null, string loadTime = null, string dataVersion = null, string timeout = null, string minimumDelay = null)
-		{
-			// http://ip_address:3480/data_request?id=status&output_format=xml
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("status"),
-				LuupOutputFormat(outputFormat),
-				LuupParam("LoadTime", loadTime),
-				LuupParam("DataVersion", dataVersion),
-				LuupParam("timeout", timeout),
-				LuupParam("minimumdelay", minimumDelay)));
-		}
-
-	public string Luup_StatusWithUdn(string udn, string outputFormat)
-		{
-			// http://ip_address:3480/data_request?id=status&output_format=xml&UDN=uuid:4d494342-5342-5645-0002-000000000002
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("status"),
-				LuupOutputFormat(outputFormat),
-				LuupUdn(udn)));
-		}
-
-	public string Luup_Status(UInt32 deviceNum, string outputFormat = null, string loadTime = null, string dataVersion = null, string timeout = null, string minimumDelay = null)
-		{
-			// http://ip_address:3480/data_request?id=status&output_format=xml&DeviceNum=6
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("status"),
-				LuupOutputFormat(outputFormat),
-				LuupDeviceNum(deviceNum),
-				LuupParam("loadtime", loadTime),
-				LuupParam("dataversion", dataVersion),
-				LuupParam("timeout", timeout),
-				LuupParam("minimumdelay", minimumDelay)));
-		}
-
-	public string Luup_SData(string outputFormat = null, string loadTime = null, string dataVersion = null, string timeout = null, string minimumDelay = null)
-		{
-			// http://ip_address:3480/data_request?id=sdata
-			// http://ip_address:3480/data_request?id=sdata&output_format=xml
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("sdata"),
-				LuupOutputFormat(outputFormat),
-				LuupParam("loadtime", loadTime),
-				LuupParam("dataversion", dataVersion),
-				LuupParam("timeout", timeout),
-				LuupParam("minimumdelay", minimumDelay)));
-		}
-
-	public string Luup_Actions(UInt32 deviceNum, string outputFormat = null)
-		{
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("actions"),
-				LuupOutputFormat(outputFormat),
-				LuupDeviceNum(deviceNum)));
-		}
-
-	public string Luup_DeviceRename(UInt32 device, string newName, UInt32 newRoom)
-		{
-			// http://ip_address:3480/data_request?id=device&action=rename&device=5&name=Chandalier&room=3
-			return Luup_DeviceRename(device, newName, newRoom.ToString(CultureInfo.InvariantCulture));
-		}
-
-	public string Luup_DeviceRename(UInt32 device, string newName, string newRoom = null)
-		{
-			// http://ip_address:3480/data_request?id=device&action=rename&device=5&name=Chandalier&room=Garage
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("device"),
-				LuupAction("rename"),
-				LuupDevice(device),
-				LuupName(newName),
-				LuupParam("room", newRoom)));
-		}
-
-	public string Luup_DeviceDelete(UInt32 device)
-		{
-			// http://ip_address:3480/data_request?id=device&action=delete&device=5
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("device"),
-				LuupAction("delete"),
-				LuupDevice(device)));
-		}
-
-	public string Luup_SceneRecord()
-		{
-			// http://ip_address:3480/data_request?id=scene&action=record
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("record")));
-		}
-
-	public string Luup_ScenePause(UInt32 seconds)
-		{
-			// http://ip_address:3480/data_request?id=scene&action=pause&seconds=y
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("pause"),
-				LuupParam("seconds", seconds.ToString(CultureInfo.InvariantCulture))));
-		}
-
-	public string Luup_SceneStopRecord()
-		{
-			// http://ip_address:3480/data_request?id=scene&action=stoprecord
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("stoprecord")));
-		}
-
-	public string Luup_SceneListRecord()
-		{
-			// http://ip_address:3480/data_request?id=scene&action=listrecord
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("listrecord")));
-		}
-
-	public string Luup_SceneDeleteRecord(UInt32 number)
-		{
-			// http://ip_address:3480/data_request?id=scene&action=deleterecord&number=x
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("deleterecord"),
-				LuupParam("number", number.ToString(CultureInfo.InvariantCulture))));
-		}
-
-	public string Luup_SceneSaveRecord(string name, string room)
-		{
-			// http://ip_address:3480/data_request?id=scene&action=saverecord&name=whatever&room=X
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("saverecord"),
-				LuupName(name),
-				LuupRoom(room)));
-		}
-
-	public string Luup_SceneRename(UInt32 sceneId, string name, string room)
-		{
-			// http://ip_address:3480/data_request?id=scene&action=rename&scene=5&name=Chandalier&room=Garage
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("rename"),
-				LuupScene(sceneId),
-				LuupName(name),
-				LuupRoom(room)));
-		}
-
-	public string Luup_SceneDelete(UInt32 sceneId)
-		{
-			// http://ip_address:3480/data_request?id=scene&action=delete&scene=5
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("delete"),
-				LuupScene(sceneId)));
-		}
-
-	public string Luup_SceneCreate(string json)
-		{
-			// http://ip_address:3480/data_request?id=scene&action=create&json=
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("create"),
-				LuupParam("json", json)));
-		}
-
-	public string Luup_SceneList(UInt32 sceneId)
-		{
-			// http://ip_address:3480/data_request?id=scene&action=list&scene=5
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("scene"),
-				LuupAction("list"),
-				LuupScene(sceneId)));
-		}
-
-	public string Luup_RoomCreate(string name)
-		{
-			// http://ip_address:3480/data_request?id=room&action=create&name=Kitchen
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("room"),
-				LuupAction("create"),
-				LuupName(name)));
-		}
-
-	public string Luup_RoomRename(UInt32 room, string name)
-		{
-			// http://ip_address:3480/data_request?id=room&action=rename&room=5&name=Garage
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("room"),
-				LuupAction("rename"),
-				LuupRoom(room),
-				LuupName(name)));
-		}
-
-	public string Luup_RoomDelete(UInt32 room)
-		{
-			// http://ip_address:3480/data_request?id=room&action=delete&room=5
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("room"),
-				LuupAction("create"),
-				LuupRoom(room)));
-		}
-
-	public string Luup_File(string filename)
-		{
-			// http://ip_address:3480/data_request?id=file&parameters=D_BinaryLight1.xml
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("file"),
-				LuupParam("parameters", filename)));
-		}
-
-	public string Luup_RunLua(string code)
-		{
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("action"),
-				LuupServiceId("urn:micasaverde-com:serviceId:HomeAutomationGateway1"),
-				LuupAction("RunLua"),
-				LuupParam("Code", code)));
-		}
 
 	public string Luup_CallAction(UInt32 deviceNum, string serviceId, string action, params string[] parameters)
 		{
