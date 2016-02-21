@@ -1,0 +1,25 @@
+{
+  "name": "mios-connect",
+  "version": "1.0.0",
+  "description": "A TypeScript connector for communicating with a Vera gateway.",
+  "main": "index.js",
+  "dependencies": {
+    "http": "^0.0.0",
+    "typescript-dotnet": "^2.5.19",
+    "typings": "^0.6.8"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/electricessence/mios-connect.git"
+  },
+  "author": "Oren Ferrari",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/electricessence/mios-connect/issues"
+  },
+  "homepage": "https://github.com/electricessence/mios-connect#readme"
+}
