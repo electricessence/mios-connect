@@ -34,6 +34,7 @@ import copy from '../node_modules/typescript-dotnet/source/System/Utility/shallo
 import ArgumentException from '../node_modules/typescript-dotnet/source/System/Exceptions/ArgumentException'
 import ArgumentNullException from '../node_modules/typescript-dotnet/source/System/Exceptions/ArgumentNullException'
 import Integer from '../node_modules/typescript-dotnet/source/System/Integer'
+import * as ServiceID from './ServiceIDs';
 
 // Http Luup Request methods
 // http://wiki.micasaverde.com/index.php/Luup_Requests
@@ -167,6 +168,11 @@ interface ILuupRequestById extends IUriComponentMap
 	id:string;
 }
 
+interface ILuupRequestByIdAndAction extends ILuupRequestById
+{
+	action:string;
+}
+
 export default class BasicMiosEngine
 {
 	protected _baseUri:Uri;
@@ -186,10 +192,13 @@ export default class BasicMiosEngine
 	{
 		// http://ip_address:3480/data_request?id=user_data2&output_format=xml
 		var _ = this;
-		var newUri = this._baseUri.toMap();
-		var defaultParams = QueryBuilder.init(_._defaultParams.toMap());
-		defaultParams.importMap(Luup.Query.translateParamNames(params));
-		newUri.query = defaultParams.toString();
+
+		var newUri = _._baseUri.updateQuery(
+			QueryBuilder
+				.init(_._defaultParams)
+				.importQuery(Luup.Query.translateParamNames(params))
+				.toMap()
+		);
 
 		return WebRequest.get(newUri.toString())
 			.then(response=>response.content);
@@ -205,6 +214,17 @@ export default class BasicMiosEngine
 		return this.request(p);
 	}
 
+
+	requestByIdAndAction(id:string, action:string, params?:IUriComponentMap):Promise<string>
+	{
+		if(!id) throw new ArgumentNullException(Luup.Query.ParamNames.ID);
+		if(!action) throw new ArgumentNullException(Luup.Query.ParamNames.ACTION);
+
+		var p:ILuupRequestByIdAndAction = params ? copy(params) : {};
+		p.id = id;
+		p.action = action;
+		return this.request(p);
+	}
 
 	userData(params?:ILuupRequestParams):Promise<string>
 	{
@@ -259,10 +279,9 @@ export default class BasicMiosEngine
 		Integer.assert(deviceNum);
 
 		var params:IUriComponentMap = params ? copy(params) : {};
-		params[Luup.Query.ParamNames.ACTION] = action;
 		params[Luup.Query.ParamNames.DEVICE] = deviceNum;
 
-		return this.requestById(Luup.Query.IDs.DEVICE, params);
+		return this.requestByIdAndAction(Luup.Query.IDs.DEVICE, action, params);
 	}
 
 	deviceRename(
@@ -294,11 +313,7 @@ export default class BasicMiosEngine
 	sceneAction(action:string, params?:IUriComponentMap):Promise<string>
 	{
 		// http://ip_address:3480/data_request?id=device&action=delete&device=5
-
-		var params:IUriComponentMap = params ? copy(params) : {};
-		params[Luup.Query.ParamNames.ACTION] = action;
-
-		return this.requestById(Luup.Query.IDs.SCENE, params);
+		return this.requestByIdAndAction(Luup.Query.IDs.SCENE, action, params);
 	}
 
 	sceneRecord():Promise<string>
@@ -390,9 +405,8 @@ export default class BasicMiosEngine
 		// http://ip_address:3480/data_request?id=device&action=delete&device=5
 
 		var params:IUriComponentMap = params ? copy(params) : {};
-		params[Luup.Query.ParamNames.ACTION] = action;
 
-		return this.requestById(Luup.Query.IDs.ROOM, params);
+		return this.requestByIdAndAction(Luup.Query.IDs.ROOM, action, params);
 	}
 
 	roomCreate(name:string):Promise<string>
@@ -432,12 +446,13 @@ export default class BasicMiosEngine
 	runLua(code:string):Promise<string> {
 		// http://ip_address:3480/data_request?id=file&parameters=D_BinaryLight1.xml
 		var params:IUriComponentMap = {};
-		params[Luup.Query.ParamNames.SERVICE_ID] = "urn:micasaverde-com:serviceId:HomeAutomationGateway1";
-		params[Luup.Query.ParamNames.ACTION] = Luup.Query.Actions.RUN_LUA;
+		params[Luup.Query.ParamNames.SERVICE_ID] = ServiceID.HOME_AUTOMATION_GATEWAY;
 		params[Luup.Query.ParamNames.CODE] = code;
 
-
-		return this.requestById(Luup.Query.IDs.ACTION, params);
+		return this.requestByIdAndAction(
+			Luup.Query.IDs.ACTION,
+			Luup.Query.Actions.RUN_LUA,
+			params);
 	}
 
 
