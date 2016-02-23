@@ -16,7 +16,7 @@ copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -29,7 +29,7 @@ SOFTWARE.
 
 import Uri from '../node_modules/typescript-dotnet/source/System/Uri/Uri'
 import QueryBuilder from '../node_modules/typescript-dotnet/source/System/Uri/QueryBuilder'
-import * as WebRequest from 'web-request';
+import * as WebRequest from '../node_modules/web-request/index';
 import copy from '../node_modules/typescript-dotnet/source/System/Utility/shallowCopy'
 import ArgumentException from '../node_modules/typescript-dotnet/source/System/Exceptions/ArgumentException'
 import ArgumentNullException from '../node_modules/typescript-dotnet/source/System/Exceptions/ArgumentNullException'
@@ -189,7 +189,6 @@ class SceneRecordModule
 	{
 
 	}
-
 
 	start():Promise<string>
 	{

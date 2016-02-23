@@ -4,10 +4,13 @@
   "description": "A TypeScript connector for communicating with a Vera gateway.",
   "main": "index.js",
   "dependencies": {
+    "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
     "typescript-dotnet": "^2.6.4",
     "web-request": "^1.0.1"
   },
   "devDependencies": {
+    "babel-preset-es2015": "^6.5.0",
     "typings": "^0.6.8"
   },
   "scripts": {

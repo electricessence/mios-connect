@@ -1,0 +1,17 @@
+<component name="libraryTable">
+  <library name="Generated files" type="javaScript">
+    <properties>
+      <sourceFilesUrls>
+        <item url="file://$PROJECT_DIR$/Mios/Connector-compiled.js" />
+        <item url="file://$PROJECT_DIR$/Mios/Luup-compiled.js" />
+        <item url="file://$PROJECT_DIR$/Mios/ServiceIDs-compiled.js" />
+      </sourceFilesUrls>
+    </properties>
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/Mios/Connector-compiled.js" />
+      <root url="file://$PROJECT_DIR$/Mios/Luup-compiled.js" />
+      <root url="file://$PROJECT_DIR$/Mios/ServiceIDs-compiled.js" />
+    </CLASSES>
+    <SOURCES />
+  </library>
+</component>

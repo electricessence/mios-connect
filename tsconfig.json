@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es6",
+    "module": "umd",
+    "target": "es5",
     "sourceMap": true
   },
   "exclude": [
