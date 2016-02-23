@@ -11,9 +11,13 @@
       <w>micasaverde</w>
       <w>minimumdelay</w>
       <w>mios</w>
+      <w>saverecord</w>
       <w>sdata</w>
       <w>stoprecord</w>
       <w>tuples</w>
+      <w>upnp</w>
+      <w>variableget</w>
+      <w>variableset</w>
     </words>
   </dictionary>
 </component>

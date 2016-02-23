@@ -22,6 +22,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
-export const HOME_AUTOMATION_GATEWAY:string = "urn:micasaverde-com:serviceId:HomeAutomationGateway1";
-export const SWITCH_POWER:string = "urn:upnp-org:serviceId:SwitchPower1";
+exports.HOME_AUTOMATION_GATEWAY = "urn:micasaverde-com:serviceId:HomeAutomationGateway1";
+exports.SWITCH_POWER = "urn:upnp-org:serviceId:SwitchPower1";
+//# sourceMappingURL=ServiceIDs.js.map

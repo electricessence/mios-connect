@@ -4,7 +4,7 @@
   "description": "A TypeScript connector for communicating with a Vera gateway.",
   "main": "index.js",
   "dependencies": {
-    "typescript-dotnet": "^2.6.0",
+    "typescript-dotnet": "^2.6.4",
     "web-request": "^1.0.1"
   },
   "devDependencies": {
