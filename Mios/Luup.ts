@@ -1,5 +1,7 @@
 export module Query
 {
+	export const OK:string = "OK";
+
 	export module ParamNames
 	{
 		export const ACTION:string = "action"; // String
@@ -65,6 +67,14 @@ export module Query
 
 		export const VARIABLE_GET:string = "variableget";
 		export const VARIABLE_SET:string = "variableset";
+
+		export const FIND_DEVICE:string = "finddevice";
+
+		export const RELOAD:string = "reload";
+		export const ALIVE:string = "alive";
+		export const RESYNC:string = "resync";
+		export const INVOKE:string = "invoke";
+
 
 	}
 

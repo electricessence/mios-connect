@@ -27,6 +27,7 @@ SOFTWARE.
 ///<reference path="../node_modules/typescript-dotnet/source/System/Uri/IUri.d.ts"/>
 ///<reference path="../node_modules/typescript-dotnet/source/System/Uri/IUriComponentFormattable.d.ts"/>
 
+import Type from '../node_modules/typescript-dotnet/source/System/Types'
 import Uri from '../node_modules/typescript-dotnet/source/System/Uri/Uri'
 import QueryBuilder from '../node_modules/typescript-dotnet/source/System/Uri/QueryBuilder'
 import * as WebRequest from '../node_modules/web-request/index';
@@ -499,159 +500,152 @@ export default class Connector
 	}
 
 
-	/*
+	findDeviceByAltId(altId:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=finddevice&devid=6
+		Integer.assert(altId);
+
+		return this.requestById(
+			Luup.Query.IDs.FIND_DEVICE,
+			{devid: altId});
+	}
+
+	findDevice(deviceNumber:number):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=finddevice&devnum=6
+		Integer.assert(deviceNumber);
+
+		return this.requestById(
+			Luup.Query.IDs.FIND_DEVICE,
+			{devnum: deviceNumber});
+	}
 
 
+	reload():Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=reload
+
+		return this.requestById(Luup.Query.IDs.RELOAD);
+	}
+
+	alive():Promise<boolean>
+	{
+		return this.requestById(Luup.Query.IDs.ALIVE)
+			.then(response=>response==Luup.Query.OK);
+	}
+
+	resync():Promise<boolean>
+	{
+		return this.requestById(Luup.Query.IDs.RESYNC)
+			.then(response=>response==Luup.Query.OK);
+	}
 
 
-	public string Luup_InstallPlugin(UInt32 pluginNum)
-		{
-			// http://ip_address:3480/data_request?id=action&serviceId=urn:micasaverde-com:serviceId:HomeAutomationGateway1&action=CreatePlugin&PluginNum=
+	invoke(deviceNum?:number):Promise<string>;
+	invoke(udn?:string):Promise<string>;
+	invoke(param?:number|string):Promise<string>
+	{
+		// http://ip_address:3480/data_request?id=invoke
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("action"),
-				LuupServiceId("urn:micasaverde-com:serviceId:HomeAutomationGateway1"),
-				LuupAction("CreatePlugin"),
-				LuupParam("PluginNum", pluginNum.ToString(CultureInfo.InvariantCulture))));
+		var params:IUriComponentMap;
+		if(param) {
+			params = {};
+
+			var n = Number(param);
+			if(!isNaN(n))
+			{
+				Integer.assert(n);
+				params[Luup.Query.ParamNames.DEVICE_NUM] = n;
+			}
+			if(Type.isString(param))
+			{
+				params[Luup.Query.ParamNames.UDN] = param;
+			}
+
 		}
 
+		return this.requestById(Luup.Query.IDs.INVOKE, params);
+	}
 
-	public string Luup_Reload()
-		{
-			// http://ip_address:3480/data_request?id=reload
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("reload")));
-		}
+/*
 
-	public Boolean Luup_Alive()
-		{
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("alive"))) == "OK";
-		}
 
-	public string Luup_FindDeviceByAltId(UInt32 altid)
-		{
-			// http://ip_address:3480/data_request?id=finddevice&devid=6
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("finddevice"),
-				LuupParam("devid", altid.ToString(CultureInfo.InvariantCulture))));
-		}
 
-	public string Luup_FindDevice(UInt32 deviceNum)
-		{
-			// http://ip_address:3480/data_request?id=finddevice&devnum=6
+public string Luup_InstallPlugin(UInt32 pluginNum)
+	{
+		// http://ip_address:3480/data_request?id=action&serviceId=urn:micasaverde-com:serviceId:HomeAutomationGateway1&action=CreatePlugin&PluginNum=
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("finddevice"),
-				LuupParam("devnum", deviceNum.ToString(CultureInfo.InvariantCulture))));
-		}
+		return
+		HttpConnection.HttpGetString(HttpPrefix, Combine(
+			LuupId("action"),
+			LuupServiceId("urn:micasaverde-com:serviceId:HomeAutomationGateway1"),
+			LuupAction("CreatePlugin"),
+			LuupParam("PluginNum", pluginNum.ToString(CultureInfo.InvariantCulture))));
+	}
 
-	public Boolean Luup_Resync()
-		{
-			return HttpConnection.HttpGetString(HttpPrefix, Combine(
-					LuupId("resync"))) == "OK";
-		}
 
-	public string Luup_WGet(string url, UInt32 timeout, string username = null, string password = null)
-		{
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("wget"),
-				LuupParam("url", url),
-				(username != null) ? LuupParam("username", username) : null,
-				(password != null) ? LuupParam("password", password) : null,
-				LuupParam("timeout", timeout.ToString(CultureInfo.InvariantCulture))));
-		}
 
-	public string Luup_IPRequests()
-		{
-			// http://ip_address:3480/data_request?id=iprequests
+public string Luup_WGet(string url, UInt32 timeout, string username = null, string password = null)
+	{
+		return
+		HttpConnection.HttpGetString(HttpPrefix, Combine(
+			LuupId("wget"),
+			LuupParam("url", url),
+			(username != null) ? LuupParam("username", username) : null,
+			(password != null) ? LuupParam("password", password) : null,
+			LuupParam("timeout", timeout.ToString(CultureInfo.InvariantCulture))));
+	}
 
-			return HttpConnection.HttpGetString(HttpPrefix,
-				LuupId("iprequests"));
-		}
+public string Luup_IPRequests()
+	{
+		// http://ip_address:3480/data_request?id=iprequests
 
-	public string Luup_IPRequests(Int32 timeout)
-		{
-			// http://ip_address:3480/data_request?id=iprequests&timeout=3600
+		return HttpConnection.HttpGetString(HttpPrefix,
+			LuupId("iprequests"));
+	}
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("iprequests"),
-				LuupParam("timeout", timeout.ToString(CultureInfo.InvariantCulture))));
-		}
+public string Luup_IPRequests(Int32 timeout)
+	{
+		// http://ip_address:3480/data_request?id=iprequests&timeout=3600
 
-	public string Luup_LiveEnergyUsage()
-		{
-			return HttpConnection.HttpGetString(HttpPrefix,
-				LuupId("live_energy_usage"));
-		}
+		return
+		HttpConnection.HttpGetString(HttpPrefix, Combine(
+			LuupId("iprequests"),
+			LuupParam("timeout", timeout.ToString(CultureInfo.InvariantCulture))));
+	}
 
-	public string Luup_JobStatus(UInt32 job, string plugin = null)
-		{
-			// http://ip_address:3480/data_request?id=jobstatus&job=13
-			// http://ip_address:3480/data_request?id=jobstatus&job=6&plugin=zwave
+public string Luup_LiveEnergyUsage()
+	{
+		return HttpConnection.HttpGetString(HttpPrefix,
+			LuupId("live_energy_usage"));
+	}
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("jobstatus"),
-				LuupParam("job", job.ToString(CultureInfo.InvariantCulture)),
-				LuupParam("plugin", plugin)));
-		}
+public string Luup_JobStatus(UInt32 job, string plugin = null)
+	{
+		// http://ip_address:3480/data_request?id=jobstatus&job=13
+		// http://ip_address:3480/data_request?id=jobstatus&job=6&plugin=zwave
 
-	public string Luup_Invoke()
-		{
-			// http://ip_address:3480/data_request?id=invoke
+		return
+		HttpConnection.HttpGetString(HttpPrefix, Combine(
+			LuupId("jobstatus"),
+			LuupParam("job", job.ToString(CultureInfo.InvariantCulture)),
+			LuupParam("plugin", plugin)));
+	}
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix,
-				LuupId("invoke"));
-		}
+public string Luup_UpdatePlugin(UInt32 pluginId)
+	{
+		// http://ip_address:3480/data_request?id=update_plugin&Plugin=Plugin_ID
 
-	public string Luup_Invoke(UInt32 deviceNum)
-		{
-			// http://ip_address:3480/data_request?id=invoke&DeviceNum=6
+		return
+		HttpConnection.HttpGetString(HttpPrefix, Combine(
+			LuupId("update_plugin"),
+			LuupParam("Plugin", pluginId.ToString(CultureInfo.InvariantCulture))));
+	}
 
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("invoke"),
-				LuupDeviceNum(deviceNum)));
-		}
+		#endregion
 
-	public string Luup_Invoke(string udn)
-		{
-			// http://ip_address:3480/data_request?id=invoke&UDN=uuid:4d494342-5342-5645-0002-000000000002
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("invoke"),
-				LuupUdn(udn)));
-		}
-
-	public string Luup_UpdatePlugin(UInt32 pluginId)
-		{
-			// http://ip_address:3480/data_request?id=update_plugin&Plugin=Plugin_ID
-
-			return
-			HttpConnection.HttpGetString(HttpPrefix, Combine(
-				LuupId("update_plugin"),
-				LuupParam("Plugin", pluginId.ToString(CultureInfo.InvariantCulture))));
-		}
-
-			#endregion
-
-			#region Constructor(s)
-	public BasicMiosEngine(string httpPrefix)
-		{
-			HttpPrefix = httpPrefix;
-		}
-			#endregion
-	}*/
+*/
 }
+

@@ -22,15 +22,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-(function (factory) {
-    if (typeof module === 'object' && typeof module.exports === 'object') {
-        var v = factory(require, exports); if (v !== undefined) module.exports = v;
-    }
-    else if (typeof define === 'function' && define.amd) {
-        define(["require", "exports"], factory);
-    }
-})(function (require, exports) {
-    exports.HOME_AUTOMATION_GATEWAY = "urn:micasaverde-com:serviceId:HomeAutomationGateway1";
-    exports.SWITCH_POWER = "urn:upnp-org:serviceId:SwitchPower1";
-});
+exports.HOME_AUTOMATION_GATEWAY = "urn:micasaverde-com:serviceId:HomeAutomationGateway1";
+exports.SWITCH_POWER = "urn:upnp-org:serviceId:SwitchPower1";
 //# sourceMappingURL=ServiceIDs.js.map

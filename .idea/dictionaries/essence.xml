@@ -2,9 +2,12 @@
   <dictionary name="essence">
     <words>
       <w>deleterecord</w>
+      <w>devid</w>
+      <w>devnum</w>
       <w>dotnet</w>
       <w>electricessence</w>
       <w>ercan</w>
+      <w>finddevice</w>
       <w>formattable</w>
       <w>github</w>
       <w>listrecord</w>
@@ -12,6 +15,7 @@
       <w>micasaverde</w>
       <w>minimumdelay</w>
       <w>mios</w>
+      <w>resync</w>
       <w>saverecord</w>
       <w>sdata</w>
       <w>stoprecord</w>
